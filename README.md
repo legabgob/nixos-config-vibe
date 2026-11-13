@@ -15,6 +15,7 @@ hosts/desktop/               i7-14700K + RTX 4070 SUPER
   default.nix                CachyOS kernel flavour, microcode, Plasma toggle
   hardware-configuration.nix PLACEHOLDER, replace with /etc/nixos's after installing
   filesystems.nix            btrfs mount options for the graphical installer's layout
+  vm.nix                     QEMU test VM overrides (build-vm only)
   disko.nix                  alternative declarative layout (not imported)
 modules/nixos/               system level
   core/boot.nix              Limine
@@ -104,7 +105,7 @@ Wired network works out of the box; for Wi-Fi run `nmtui`.
 nix-shell -p git gh
 gh auth login            # GitHub.com, HTTPS, "Login with a web browser":
                          # open the URL on your phone and enter the code
-gh repo clone legabgob/nixos-config ~/nixos-config
+gh repo clone legabgob/nixos-config-vibe ~/nixos-config
 cd ~/nixos-config
 ```
 
@@ -180,6 +181,59 @@ git add -A
 sudo nixos-install --flake .#desktop --option accept-flake-config true
 sudo nixos-enter --root /mnt -c 'passwd gabriel'
 ```
+
+## Testing in a VM (from another Linux install, e.g. CachyOS)
+
+`hosts/desktop/vm.nix` adds a QEMU variant of this exact system. It boots the
+CachyOS kernel, greetd, niri, Noctalia, Home Manager and all the apps. It does
+not test the NVIDIA driver (the VM gets a virtual GPU with Mesa instead),
+Limine or the btrfs layout (the VM boots its kernel directly from a plain disk
+image), or the two-monitor layout. The real system is unaffected by this file.
+
+1. Install Nix on the host and let your user talk to the daemon:
+
+   ```sh
+   sudo pacman -S nix
+   sudo systemctl enable --now nix-daemon.socket
+   sudo usermod -aG nix-users $USER     # then log out and back in
+   ```
+
+2. Enable flakes and the two extra binary caches (otherwise the CachyOS kernel
+   and Noctalia compile locally). Append to `/etc/nix/nix.conf`, then
+   `sudo systemctl restart nix-daemon`:
+
+   ```
+   experimental-features = nix-command flakes
+   extra-substituters = https://cache.lantian.pub/lantian https://noctalia.cachix.org
+   extra-trusted-public-keys = lantian:WVGO7vsRMSEN+h7Lp7kv6SAmrkEXgUGbbXm7jMDjBuQ= noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4=
+   ```
+
+3. Build the VM from a clone of this repo. Everything comes from binary caches;
+   the store grows by roughly 20 GB.
+
+   ```sh
+   nix build .#nixosConfigurations.desktop.config.system.build.vm
+   ```
+
+4. Run it. Nix-built QEMU cannot find the host's NVIDIA OpenGL libraries on its
+   own, and the virtual GPU needs them, so start it through nixGL:
+
+   ```sh
+   nix run --impure github:nix-community/nixGL -- ./result/bin/run-desktop-vm
+   ```
+
+   Log in as `gabriel` with password `vm`. Press Ctrl+Alt+G to grab keyboard
+   and mouse, so Super shortcuts go to niri instead of the host desktop; press it
+   again to release them.
+
+5. State (home directory, settings) lives in `desktop.qcow2` in the directory
+   you started it from. Delete that file for a fresh VM. To free the space
+   afterwards: `rm result desktop.qcow2 && nix-collect-garbage -d`.
+
+If the window stays black, nixGL could not set up the host driver. As a slow
+fallback, replace the two display lines in `vm.nix` with `"-device virtio-vga"`
+and `"-display gtk"` (software rendering), rebuild, and run
+`./result/bin/run-desktop-vm` directly.
 
 ## Kernel
 

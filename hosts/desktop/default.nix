@@ -7,6 +7,8 @@
     ./hardware-configuration.nix
     # Mount options for the installer's btrfs layout.
     ./filesystems.nix
+    # Settings used only when the config is run as a QEMU VM.
+    ./vm.nix
 
     # Alternative install path (declarative partitioning from the minimal
     # ISO): use ./disko.nix instead of ./filesystems.nix and generate the
