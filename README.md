@@ -190,50 +190,53 @@ not test the NVIDIA driver (the VM gets a virtual GPU with Mesa instead),
 Limine or the btrfs layout (the VM boots its kernel directly from a plain disk
 image), or the two-monitor layout. The real system is unaffected by this file.
 
-1. Install Nix on the host and let your user talk to the daemon:
+niri needs 3D acceleration in a VM. The virtual GPU (virgl) renders through the
+host's OpenGL driver, which a Nix-built QEMU cannot load from a non-NixOS host,
+so the VM runs on the host's own QEMU (`useHostQemu` in `vm.nix`).
+
+1. Install Nix and QEMU on the host (Arch/CachyOS):
 
    ```sh
-   sudo pacman -S nix
+   sudo pacman -S nix qemu-desktop
    sudo systemctl enable --now nix-daemon.socket
-   sudo usermod -aG nix-users $USER     # then log out and back in
    ```
 
 2. Enable flakes and the two extra binary caches (otherwise the CachyOS kernel
-   and Noctalia compile locally). Append to `/etc/nix/nix.conf`, then
-   `sudo systemctl restart nix-daemon`:
+   and Noctalia compile locally). In any shell, including fish:
 
-   ```
-   experimental-features = nix-command flakes
-   extra-substituters = https://cache.lantian.pub/lantian https://noctalia.cachix.org
-   extra-trusted-public-keys = lantian:WVGO7vsRMSEN+h7Lp7kv6SAmrkEXgUGbbXm7jMDjBuQ= noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4=
+   ```sh
+   printf '%s\n' \
+       'experimental-features = nix-command flakes' \
+       'extra-substituters = https://cache.lantian.pub/lantian https://noctalia.cachix.org' \
+       'extra-trusted-public-keys = lantian:WVGO7vsRMSEN+h7Lp7kv6SAmrkEXgUGbbXm7jMDjBuQ= noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4=' \
+       | sudo tee -a /etc/nix/nix.conf >/dev/null
+   sudo systemctl restart nix-daemon
    ```
 
-3. Build the VM from a clone of this repo. Everything comes from binary caches;
-   the store grows by roughly 20 GB.
+3. Build the VM from a clone of this repo. Answer `N` if Nix asks about the
+   flake's `extra-substituters`/`extra-trusted-public-keys` (step 2 already
+   covers them). Everything comes from binary caches; `/nix` grows by roughly
+   20 GB.
 
    ```sh
    nix build .#nixosConfigurations.desktop.config.system.build.vm
    ```
 
-4. Run it. Nix-built QEMU cannot find the host's NVIDIA OpenGL libraries on its
-   own, and the virtual GPU needs them, so start it through nixGL:
+4. Run it:
 
    ```sh
-   nix run --impure github:nix-community/nixGL -- ./result/bin/run-desktop-vm
+   ./result/bin/run-desktop-vm
    ```
 
-   Log in as `gabriel` with password `vm`. Press Ctrl+Alt+G to grab keyboard
-   and mouse, so Super shortcuts go to niri instead of the host desktop; press it
-   again to release them.
+   Log in as `gabriel` with password `vm`. "Calling import-environment without
+   a list of variable names is deprecated" is a harmless warning from
+   `niri-session`; niri appears a moment later. Press Ctrl+Alt+G to grab
+   keyboard and mouse, so Super shortcuts go to niri instead of the host
+   desktop; press it again to release them.
 
 5. State (home directory, settings) lives in `desktop.qcow2` in the directory
    you started it from. Delete that file for a fresh VM. To free the space
    afterwards: `rm result desktop.qcow2 && nix-collect-garbage -d`.
-
-If the window stays black, nixGL could not set up the host driver. As a slow
-fallback, replace the two display lines in `vm.nix` with `"-device virtio-vga"`
-and `"-display gtk"` (software rendering), rebuild, and run
-`./result/bin/run-desktop-vm` directly.
 
 ## Kernel
 
