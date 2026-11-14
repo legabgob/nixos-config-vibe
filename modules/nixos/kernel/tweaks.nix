@@ -39,10 +39,13 @@
 
   # sched_ext loader, the backend of CachyOS's scheduler switcher. No scheduler
   # is started by default (the kernel's own one is used); switch at runtime with
-  # `scxctl start --sched lavd`, or set one here:
+  # `scxctl start --sched lavd`, or set config.default_sched = "scx_lavd".
   services.scx-loader = {
     enable = true;
-    # config.default_sched = "scx_lavd";
+    # Without any setting the module writes an empty /etc/scx_loader.toml,
+    # which scx_loader rejects ("The config file is empty!") and the service
+    # fails. default_mode alone starts nothing; it only fills the file.
+    config.default_mode = "Auto";
   };
 
   services.udev.extraRules = ''
