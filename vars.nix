@@ -9,11 +9,11 @@
   # Dates, units, paper size, currency.
   regionalLocale = "fr_CH.UTF-8";
 
-  # Used by the TTY, the greeter and niri. Swiss French by default;
-  # use { layout = "us"; variant = ""; } for a US keyboard.
+  # Used by the TTY, the greeter and niri. US QWERTY. For French accents
+  # without dead keys, variant "altgr-intl" puts them on AltGr (AltGr+e = é).
   keyboard = {
-    layout = "ch";
-    variant = "fr";
+    layout = "us";
+    variant = "";
   };
 
   # Monitor connector names. Fill in after the first login from

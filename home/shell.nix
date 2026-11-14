@@ -43,7 +43,17 @@
     };
   };
 
-  programs.starship.enable = true;
+  programs.starship = {
+    enable = true;
+    # Same prompt in bash and fish, so show which shell you are in, except
+    # in fish (the normal case).
+    settings.shell = {
+      disabled = false;
+      fish_indicator = "";
+      bash_indicator = "bash ";
+      format = "[$indicator]($style)";
+    };
+  };
 
   programs.git = {
     enable = true;
